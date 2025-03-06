@@ -10,9 +10,9 @@
 ><https://www.glfw.org/download.html>
 >//
 ><https://sourceforge.net/projects/glew/files/glew/2.1.0/>
-
 >**离散事件模拟（1）**
 >根据要求，我们选择使用离散事件来模拟网络服务进程，在不考虑算法优化，单纯模拟题目配置要求下，采用C++写了一个test1.cpp完成题目的$F3$功能。按照题目要求，我抽象出离散时间模拟的设计与思路，并记录于**DES.md**中。
+>但是初步发现存在下列问题：请求邻居传输缺乏的数据块功能无法正常实现
 >在学习离散事件模拟中，参考了如下资料：
 ><https://blog.csdn.net/m0_64357419/article/details/132459125>
 >//
