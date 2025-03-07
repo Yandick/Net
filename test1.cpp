@@ -36,7 +36,10 @@ struct Event
     // 优先队列比较函数
     bool operator>(const Event &other) const
     {
-        return time > other.time;
+        if (time != other.time)
+            return time > other.time;
+        else
+            return block_id > other.block_id;
     }
 };
 
@@ -47,10 +50,11 @@ std::priority_queue<Event, std::vector<Event>, std::greater<Event>> eventQueue; 
 int currentBlockId = 1;                                                         // 当前数据块序号
 const int blockSize = 1;                                                        // 数据块大小 (KB)
 const int serverId = 0;                                                         // 服务器 ID
-double totalTime = 10;                                                          // 总模拟时间 (秒)
+double totalTime;                                                               // 总模拟时间 (秒)
 const int M = 5;                                                                // 连续播放所需的数据块数
 const int cacheSize = 50;                                                       // 客户端缓存大小
 const double distancemaxm = 1000.00 * sqrt(2);
+std::map<std::pair<int, int>, double> bandwidthMap; // 全局带宽连接
 
 // 初始化网络
 void initializeNetwork(int N, int t)
@@ -66,7 +70,6 @@ void initializeNetwork(int N, int t)
     }
 
     // 随机建立双向连接
-    std::map<std::pair<int, int>, bool> connectionMap; // 避免重复连接
     double minBandwidth = 100.0, maxBandwidth = 0.0;
     for (int i = 0; i <= N; ++i)
     {
@@ -80,12 +83,15 @@ void initializeNetwork(int N, int t)
 
                 // 添加双向连接
                 nodes[i].neighbors.push_back(neighbor);
-                nodes[neighbor].neighbors.push_back(i);
+                if (std::find(nodes[i].neighbors.begin(), nodes[i].neighbors.end(), neighbor) == nodes[i].neighbors.end())
+                    nodes[neighbor].neighbors.push_back(i);
 
                 // 计算传输速率
                 double distance = sqrt(pow(nodes[i].x - nodes[neighbor].x, 2) + pow(nodes[i].y - nodes[neighbor].y, 2));
                 double bandwidth = (100.0 / distancemaxm) * distance;   // 传输速率与距离成反比
                 bandwidth = std::min(std::max(bandwidth, 20.0), 100.0); // 限制在 [20KB/s, 100KB/s]
+                bandwidthMap[{i, neighbor}] = bandwidth;
+                bandwidthMap[{neighbor, i}] = bandwidth;
 
                 // 更新最小和最大传输速率
                 minBandwidth = std::min(minBandwidth, bandwidth);
@@ -126,9 +132,7 @@ void handleBlockGeneration(double &currentTime)
         for (int neighbor : nodes[serverId].neighbors)
         {
             double bandwidth;
-            double distance = sqrt(pow(nodes[serverId].x - nodes[neighbor].x, 2) + pow(nodes[serverId].y - nodes[neighbor].y, 2));
-            bandwidth = (100.0 / distancemaxm) * distance;
-            bandwidth = std::min(std::max(bandwidth, 20.0), 100.0);
+            bandwidth = bandwidthMap[{serverId, neighbor}];
             double transmissionTime = blockSize / bandwidth;
             scheduleEvent(currentTime + transmissionTime, 1, serverId, neighbor, currentBlockId);
         }
@@ -165,7 +169,7 @@ void handleBlockTransmission(double &currentTime, int source, int target, int bl
     //     if (neighbor != source)
     //     {
     //         scheduleEvent(currentTime, 2, target, neighbor, block_id);
-    //     }
+    //     }b
     // }
 }
 
@@ -175,9 +179,7 @@ void handleBlockRequest(double &currentTime, int source, int target, int block_i
     // 检查目标节点是否有请求的数据块
     if (std::find(nodes[target].cache.begin(), nodes[target].cache.end(), block_id) != nodes[target].cache.end())
     {
-        double distance = sqrt(pow(nodes[source].x - nodes[target].x, 2) + pow(nodes[source].y - nodes[target].y, 2));
-        double bandwidth = (100.0 / distancemaxm) * distance;
-        bandwidth = std::min(std::max(bandwidth, 20.0), 100.0);
+        double bandwidth = bandwidthMap[{source, target}];
         double transmissionTime = blockSize / bandwidth;
         scheduleEvent(currentTime + transmissionTime, 1, target, source, block_id);
     }
@@ -219,32 +221,56 @@ double calculateSmoothness(const Node &client)
 {
     int continuousBlocks = 0;
     int nextExpected = client.next_expected_block;
+    int ans = 0;
+    int sum = 0;
+    int tmp = -1;
     for (int block : client.cache)
     {
-        if (block == nextExpected)
+        if (tmp == -1)
         {
-            continuousBlocks++;
-            nextExpected++;
+            tmp = block;
+            sum = 1;
+            ans = std::max(ans, sum);
+            continue;
         }
         else
         {
-            continuousBlocks = 0;
+            if (block - tmp == 1)
+            {
+                ++sum;
+                tmp = block;
+                ans = std::max(ans, sum);
+                continue;
+            }
+            else
+            {
+                ans = std::max(ans, sum);
+                sum = 1;
+                tmp = block;
+            }
         }
     }
-    return (continuousBlocks >= M) ? 1.0 : 0.0;
+    ans = std::max(ans, sum);
+    return (ans + 0.01);
 }
 
 // 主函数
 int main()
 {
-    int N = 100; // 客户端数量
-    int t = 10;  // 每个节点的邻居数
+    int N; // 客户端数量
+    int t; // 每个节点的邻居数
+
+    std::cin >> N >> t;
 
     // 初始化网络
     initializeNetwork(N, t);
 
     // 启动模拟
     scheduleEvent(0.0, 0, serverId, -1, -1); // 服务器开始生成数据块
+
+    // 给定总时间
+    std::cin >> totalTime;
+
     simulate();
 
     // 计算每个客户端的流畅度
