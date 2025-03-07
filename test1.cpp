@@ -47,7 +47,7 @@ std::priority_queue<Event, std::vector<Event>, std::greater<Event>> eventQueue; 
 int currentBlockId = 1;                                                         // 当前数据块序号
 const int blockSize = 1;                                                        // 数据块大小 (KB)
 const int serverId = 0;                                                         // 服务器 ID
-double totalTime = 1.20;                                                        // 总模拟时间 (秒)
+double totalTime = 10;                                                          // 总模拟时间 (秒)
 const int M = 5;                                                                // 连续播放所需的数据块数
 const int cacheSize = 50;                                                       // 客户端缓存大小
 const double distancemaxm = 1000.00 * sqrt(2);
@@ -67,7 +67,7 @@ void initializeNetwork(int N, int t)
 
     // 随机建立双向连接
     std::map<std::pair<int, int>, bool> connectionMap; // 避免重复连接
-    double minBandwidth = 100000.0, maxBandwidth = 0.0;
+    double minBandwidth = 100.0, maxBandwidth = 0.0;
     for (int i = 0; i <= N; ++i)
     {
         std::unordered_set<int> selectedNeighbors; // 已选择的邻居
@@ -84,8 +84,8 @@ void initializeNetwork(int N, int t)
 
                 // 计算传输速率
                 double distance = sqrt(pow(nodes[i].x - nodes[neighbor].x, 2) + pow(nodes[i].y - nodes[neighbor].y, 2));
-                double bandwidth = (100000 / distancemaxm) * distance;        // 传输速率与距离成反比
-                bandwidth = std::min(std::max(bandwidth, 20000.0), 100000.0); // 限制在 [20KB/s, 100KB/s]
+                double bandwidth = (100.0 / distancemaxm) * distance;   // 传输速率与距离成反比
+                bandwidth = std::min(std::max(bandwidth, 20.0), 100.0); // 限制在 [20KB/s, 100KB/s]
 
                 // 更新最小和最大传输速率
                 minBandwidth = std::min(minBandwidth, bandwidth);
@@ -127,8 +127,8 @@ void handleBlockGeneration(double &currentTime)
         {
             double bandwidth;
             double distance = sqrt(pow(nodes[serverId].x - nodes[neighbor].x, 2) + pow(nodes[serverId].y - nodes[neighbor].y, 2));
-            bandwidth = (100000 / distancemaxm) * distance;
-            bandwidth = std::min(std::max(bandwidth, 20000.0), 100000.0);
+            bandwidth = (100.0 / distancemaxm) * distance;
+            bandwidth = std::min(std::max(bandwidth, 20.0), 100.0);
             double transmissionTime = blockSize / bandwidth;
             scheduleEvent(currentTime + transmissionTime, 1, serverId, neighbor, currentBlockId);
         }
@@ -176,8 +176,8 @@ void handleBlockRequest(double &currentTime, int source, int target, int block_i
     if (std::find(nodes[target].cache.begin(), nodes[target].cache.end(), block_id) != nodes[target].cache.end())
     {
         double distance = sqrt(pow(nodes[source].x - nodes[target].x, 2) + pow(nodes[source].y - nodes[target].y, 2));
-        double bandwidth = (100000 / distancemaxm) * distance;
-        bandwidth = std::min(std::max(bandwidth, 20000.0), 100000.0);
+        double bandwidth = (100.0 / distancemaxm) * distance;
+        bandwidth = std::min(std::max(bandwidth, 20.0), 100.0);
         double transmissionTime = blockSize / bandwidth;
         scheduleEvent(currentTime + transmissionTime, 1, target, source, block_id);
     }
